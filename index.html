@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>滋賀県商談会 アンケート</title>
+<style>
+:root{--pri:#0b5ed7;--pri-d:#084298;--bg:#f5f7fa;--card:#fff;--tx:#1f2933;--mut:#5c6b7a;--bd:#d8dee5;--err:#c0392b;--errbg:#fdecea;--okbg:#e6f6ec;--ok:#1e7e34;--warn:#fffaf0;--warnbd:#ffe0a3}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.7 "Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",Meiryo,sans-serif}
+header{background:var(--pri);color:#fff;padding:12px 16px;font-size:14px}
+main{max-width:780px;margin:0 auto;padding:16px 14px 80px}
+h1{font-size:21px;margin:14px 0 4px}
+h2{font-size:18px;margin:28px 0 10px;padding-left:10px;border-left:5px solid var(--pri)}
+.lead{color:var(--mut);font-size:14px;margin:0 0 12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:16px;margin:12px 0}
+.who{background:var(--warn);border:1px solid var(--warnbd);border-radius:10px;padding:10px 14px;font-size:15px}
+.q{margin:18px 0 6px;font-weight:700}
+.req::after{content:" 必須";color:#fff;background:var(--err);font-size:11px;padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:middle;font-weight:400}
+.opt{display:block;padding:7px 10px;border:1px solid var(--bd);border-radius:8px;margin:5px 0;cursor:pointer;background:#fff}
+.opt:hover{border-color:var(--pri)}
+.opt input{margin-right:8px;transform:scale(1.15)}
+textarea,input[type=text],select{width:100%;font:inherit;padding:9px 10px;border:1px solid var(--bd);border-radius:8px;background:#fff}
+textarea{min-height:84px;resize:vertical}
+.help{font-size:13px;color:var(--mut);margin:2px 0 6px}
+.mtg{border-left:6px solid var(--pri)}
+.mtg h3{margin:0 0 4px;font-size:17px}
+.slot{display:inline-block;background:var(--pri);color:#fff;border-radius:6px;padding:0 8px;margin-right:8px;font-size:14px}
+.pc{margin:6px 0 10px 14px;padding:8px 10px;background:#f0f6ff;border-radius:8px}
+.pc label.t{font-size:14px;font-weight:700;display:block}
+.skip{background:#f3f4f6;border-radius:8px;padding:6px 10px;margin:8px 0}
+.err{outline:2px solid var(--err);border-radius:8px;background:var(--errbg)}
+.msg{color:var(--err);font-size:13px;margin:4px 0}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--pri);background:#fff;color:var(--pri);padding:8px 14px}
+button.main{background:var(--pri);color:#fff;font-weight:700;padding:14px;width:100%;font-size:17px;margin-top:20px}
+button:disabled{opacity:.5}
+.banner{border-radius:10px;padding:12px 14px;margin:12px 0;font-size:15px}
+.banner.ok{background:var(--okbg);color:var(--ok);border:1px solid #b7e4c7}
+.banner.ng{background:var(--errbg);color:var(--err);border:1px solid #f5c6cb}
+.banner.info{background:var(--warn);border:1px solid var(--warnbd)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header>滋賀県 首都圏販路開拓商談会（2026年11月30日）アンケート</header>
+<main id="app"><p>読み込み中…</p></main>
+<script>
+// 【要差し替え】アンケート用GASをデプロイしたURL(.../exec)
+const BASE_URL = 'https://script.google.com/macros/s/AKfycbw_ORlRcf2tNjxeCvFvfpnqDSJGLTLfhTYR23PY_z3bk7tqoqwdIZ2yr_5pXkl_Vg7VFw/exec';
+
+const RESULTS = ['①取扱の方向でまとまった','②社内検討予定（見積り・サンプル送付等を依頼）','③取引条件によっては、取扱の可能性もある','④現状では取扱が難しい'];
+const SAT4 = ['大変満足','満足','普通','不満'];
+const ACTIONS = ['御礼メール','サンプル送付','見積り提出','次回商談（対面・オンライン）','その他','特になし'];
+const COUNTS = Array.from({length:9},(_,i)=>i+'件').concat(['9件以上']);
+const IMPORTANT = ['品質・味','コストパフォーマンス','供給量','出展者の熱意','商品のストーリー性','商流','パッケージ','地域性','製造過程の安全性','SDGsや環境問題などへの取り組み','無添加・オーガニック','産直対応可','PB・OEM対応可','希少性','商談後の対応の速さや丁寧さ'];
+
+const token = new URLSearchParams(location.search).get('t') || '';
+const $app = document.getElementById('app');
+const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let S = null;            // サーバーからの参加者情報
+let Q = [];              // 全体設問(name, label, kind, ...)
+const DKEY = 'shigaSurvey_' + token;
+
+/* ---------- 設問定義 ---------- */
+function defineQuestions(type){
+  const pre = [], post = [];
+  const radio = (name,label,opts,reason,req=true)=>({name,label,kind:'radio',opts,reason,req});
+  if(type==='vendor'){
+    pre.push(radio('Q1','Q1. 本商談会に参加されて、いかがでしたか？',SAT4,'上記の評価理由をお聞かせください。'));
+    pre.push({name:'Q2',label:'Q2. 当日成約した商談件数をおしえてください。',kind:'select',opts:COUNTS,req:true});
+    pre.push({name:'Q3',label:'Q3. 継続して商談を進める（今後取引につながりそうな）件数をおしえてください。',kind:'select',opts:COUNTS,req:true});
+    pre.push(radio('Q4','Q4. 参加バイヤーの質はいかがでしたか？',SAT4,'上記の理由および、ご感想をお聞かせください。'));
+    pre.push(radio('Q5','Q5. 来年も当商談会に出展したいと思いますか？',['出展したい','検討したい','出展しない'],'上記の理由をお聞かせください。'));
+    post.push(radio('Q6','Q6. 当日の運営（会場・受付〈QRコード〉・タイムテーブル等）はいかがでしたか？',SAT4,'上記の理由やご要望をお聞かせください。'));
+    post.push({name:'Q7',label:'Q7. その他、運営に関してご意見・ご感想をご記入ください。',kind:'text',req:false});
+  }else{
+    pre.push(radio('Q1','Q1. 本商談会に参加されて、いかがでしたか？',SAT4,'上記の評価理由をお聞かせください。'));
+    post.push({name:'Q2',label:'Q2. 商談された事業者の商品に対し、首都圏での販路開拓を進めるにあたっての改善点やアドバイス等がございましたらご記入ください。',kind:'text',req:false});
+    post.push({name:'Q3',label:'Q3. 商談において、重視する点は何ですか？（複数回答可）',kind:'check',opts:IMPORTANT,other:true,req:false});
+    post.push({name:'Q4',label:'Q4. 注目している、または気になる地域、テーマ、ジャンル等をお聞かせください。',help:'（例：健康食品、調理時間短縮、催事可能、SDGsへの取組み、グルテンフリー等）',kind:'text',req:false});
+    post.push({name:'Q5',label:'Q5. 滋賀県のどういったところに魅力を感じますか？またどういう商品があったら良いと思いますか？',kind:'text',req:false});
+    post.push(radio('Q6','Q6. 当日の運営（会場・受付〈QRコード〉・タイムテーブル等）はいかがでしたか？',SAT4,'上記の理由やご要望をお聞かせください。'));
+    post.push({name:'Q7',label:'Q7. その他、ご意見・ご感想がございましたらお聞かせください。',kind:'text',req:false});
+  }
+  return {pre,post};
+}
+
+/* ---------- 描画 ---------- */
+function qHtml(q){
+  const rq = q.req?' req':'';
+  let h = `<div class="q${rq}">${esc(q.label)}</div>${q.help?`<div class="help">${esc(q.help)}</div>`:''}<div data-qwrap="${q.name}">`;
+  if(q.kind==='radio'){
+    h += q.opts.map(o=>`<label class="opt"><input type="radio" name="${q.name}" value="${esc(o)}">${esc(o)}</label>`).join('');
+    if(q.reason) h += `<div class="help" style="margin-top:8px">${esc(q.reason)}</div><textarea name="${q.name}_reason"></textarea>`;
+  }else if(q.kind==='select'){
+    h += `<select name="${q.name}"><option value="">選択してください</option>${q.opts.map(o=>`<option>${esc(o)}</option>`).join('')}</select>`;
+  }else if(q.kind==='check'){
+    h += q.opts.map(o=>`<label class="opt"><input type="checkbox" name="${q.name}" value="${esc(o)}">${esc(o)}</label>`).join('');
+    if(q.other) h += `<label class="opt" style="display:flex;gap:6px;align-items:center"><span style="white-space:nowrap">その他：</span><input type="text" name="${q.name}_other"></label>`;
+  }else h += `<textarea name="${q.name}"></textarea>`;
+  return h + `<div class="msg" hidden></div></div>`;
+}
+
+function meetingHtml(m,i,type){
+  const prodLabel = type==='buyer' ? '商談した事業者の商品（商談で扱った商品をすべて選択）' : '商談で提案した自社商品（提案した商品をすべて選択）';
+  const cmtLabel = type==='buyer' ? 'この商品へのコメント（魅力・改善点・取引条件の課題など）' : 'この商品へのバイヤーの反応・要望';
+  const resLabel = type==='buyer' ? '商談結果' : 'バイヤーの反応（商談結果）';
+  const products = m.products.map((p,j)=>`
+    <label class="opt"><input type="checkbox" class="pchk" data-m="${i}" data-j="${j}" name="m${i}_p${j}">${esc(p)}</label>
+    <div class="pc" id="pc_${i}_${j}" hidden><label class="t req">${esc(p)}：${cmtLabel}</label><textarea name="m${i}_p${j}_c"></textarea><div class="msg" hidden></div></div>`).join('');
+  return `<div class="card mtg" id="mtg${i}" data-i="${i}">
+    <h3><span class="slot">${esc(m.slot)}</span>${esc(m.partner)}${m.contact?`<small style="font-weight:400;color:var(--mut)">　${esc(m.contact)} 様</small>`:''}</h3>
+    <label class="skip"><input type="checkbox" name="m${i}_skip" class="skipchk" data-m="${i}"> この商談は実施しなかった（欠席・都合による中止など）</label>
+    <div id="mbody${i}">
+      <div class="q req">${resLabel}</div>
+      <div data-qwrap="m${i}_res">${RESULTS.map(o=>`<label class="opt"><input type="radio" name="m${i}_res" value="${esc(o)}">${esc(o)}</label>`).join('')}<div class="msg" hidden></div></div>
+      ${type==='vendor'?`<div class="q">商談後に必要な対応（該当するものすべて）</div>${ACTIONS.map(o=>`<label class="opt"><input type="checkbox" name="m${i}_act" value="${esc(o)}">${esc(o)}</label>`).join('')}`:''}
+      <div class="q req">${prodLabel}</div>
+      <div class="help">選んだ商品ごとにコメント欄が表示されます（コメントは必須です）。登録商品以外を扱った場合は、下の「＋リストにない商品を追加」から入力してください。</div>
+      <div data-qwrap="m${i}_prod">${products || '<div class="help">登録されている商品はありません。下のボタンから商品を追加してください。</div>'}
+      <div id="others${i}"></div><div class="msg" hidden></div></div>
+      <button type="button" class="addother" data-m="${i}">＋リストにない商品を追加</button>
+      <div class="q">${type==='buyer'?'この商談全体へのコメント（任意）':'この商談のメモ・今後の対応など（任意）'}</div>
+      <textarea name="m${i}_memo"></textarea>
+    </div></div>`;
+}
+
+function addOther(i,restoreVals){
+  const box = document.getElementById('others'+i);
+  const n = box.children.length;
+  const d = document.createElement('div'); d.className='pc';
+  d.innerHTML = `<label class="t req">リスト外の商品名</label><input type="text" name="m${i}_o${n}_n"><label class="t req" style="margin-top:6px">この商品へのコメント</label><textarea name="m${i}_o${n}_c"></textarea><div class="msg" hidden></div>`;
+  box.appendChild(d);
+  d.addEventListener('input',save);
+  return n;
+}
+
+function render(){
+  const {pre,post} = defineQuestions(S.type);
+  Q = pre.concat(post);
+  const typeJa = S.type==='buyer' ? 'バイヤー' : '事業者';
+  let h = `<h1>商談会アンケート（${typeJa}様）</h1>
+  <p class="lead">${S.type==='buyer'?'ご回答いただいた内容は、本事業の実績報告に使用させていただくほか、コメントやアドバイスは事業者へフィードバックさせていただきます。':'今後の運営および事業の成果把握に活かしてまいりますので、率直なご意見・ご感想をお聞かせください。'}</p>
+  <div class="who"><b>${esc(S.company)}</b>${S.contact?`　${esc(S.contact)} 様`:''}</div>
+  ${S.submitted?`<div class="banner info">すでにご回答いただいています（${esc(S.lastSubmittedAt)}）。修正する場合は、全項目を入力し直して送信してください（前回の回答は置き換わります）。</div>`:''}
+  <div class="card"><b>■記載情報のお取り扱いについて</b><div class="help">ご記入いただいた情報は、事務局のリッキービジネスソリューション株式会社が取得・管理し、本事業の運営上必要となる報告書の作成等の目的にのみ使用します。</div>
+  <div data-qwrap="consent"><label class="opt"><input type="checkbox" name="consent">同意する</label><div class="msg" hidden></div></div></div>`;
+  h += `<h2>1. 商談会全体について</h2><div class="card">${pre.map(qHtml).join('')}</div>`;
+  h += `<h2>2. 商談ごとのご回答</h2><p class="lead">${S.type==='buyer'?'本日商談した事業者ごとに、結果・商品・コメントをご記入ください。':'本日商談したバイヤーごとに、結果・提案した商品・バイヤーの反応をご記入ください。'}（${S.partners.length}件）</p>`;
+  h += S.partners.map((m,i)=>meetingHtml(m,i,S.type)).join('');
+  h += `<h2>3. 全体について</h2><div class="card">${post.map(qHtml).join('')}</div>
+  <div id="submitMsg" class="banner ng" hidden></div>
+  <button class="main" id="submitBtn" type="button">回答を送信する</button>
+  <p class="help" style="text-align:center">入力内容はこの端末に自動保存されます（送信前に画面を閉じても続きから入力できます）。</p>`;
+  $app.innerHTML = h;
+
+  $app.addEventListener('change',e=>{
+    const t=e.target;
+    if(t.classList.contains('pchk')) document.getElementById(`pc_${t.dataset.m}_${t.dataset.j}`).hidden = !t.checked;
+    if(t.classList.contains('skipchk')) document.getElementById('mbody'+t.dataset.m).hidden = t.checked;
+    save();
+  });
+  $app.addEventListener('input',save);
+  $app.addEventListener('click',e=>{ if(e.target.classList.contains('addother')){ addOther(+e.target.dataset.m); save(); }});
+  document.getElementById('submitBtn').onclick = submit;
+  restore();
+}
+
+/* ---------- 自動保存 ---------- */
+function save(){
+  try{
+    const o={};
+    $app.querySelectorAll('input,textarea,select').forEach(el=>{
+      if(!el.name) return;
+      if(el.type==='radio'){ if(el.checked) o[el.name]=el.value; }
+      else if(el.type==='checkbox'){ o[el.name+(el.value&&el.value!=='on'?'|'+el.value:'')]=el.checked; }
+      else o[el.name]=el.value;
+    });
+    S.partners.forEach((m,i)=>{ o['_n'+i]=document.getElementById('others'+i).children.length; });
+    localStorage.setItem(DKEY,JSON.stringify(o));
+  }catch(e){}
+}
+function restore(){
+  let o; try{ o=JSON.parse(localStorage.getItem(DKEY)||'null'); }catch(e){}
+  if(!o) return;
+  S.partners.forEach((m,i)=>{ for(let k=0;k<(o['_n'+i]||0);k++) addOther(i); });
+  $app.querySelectorAll('input,textarea,select').forEach(el=>{
+    if(!el.name) return;
+    if(el.type==='radio'){ el.checked = o[el.name]===el.value; }
+    else if(el.type==='checkbox'){ el.checked = !!o[el.name+(el.value&&el.value!=='on'?'|'+el.value:'')]; }
+    else if(o[el.name]!==undefined) el.value=o[el.name];
+  });
+  $app.querySelectorAll('.pchk').forEach(el=>{ document.getElementById(`pc_${el.dataset.m}_${el.dataset.j}`).hidden=!el.checked; });
+  $app.querySelectorAll('.skipchk').forEach(el=>{ document.getElementById('mbody'+el.dataset.m).hidden=el.checked; });
+}
+
+/* ---------- 検証・送信 ---------- */
+function val(name){ const e=$app.querySelector(`[name="${name}"]`); return e?e.value.trim():''; }
+function radio(name){ const e=$app.querySelector(`input[name="${name}"]:checked`); return e?e.value:''; }
+function checks(name){ return [...$app.querySelectorAll(`input[name="${name}"]:checked`)].map(e=>e.value); }
+function flag(wrapEl,msg){ wrapEl.classList.add('err'); const m=wrapEl.querySelector(':scope > .msg'); if(m){m.textContent=msg;m.hidden=false;} errs.push(wrapEl); }
+let errs=[];
+function clearErr(){ errs=[]; $app.querySelectorAll('.err').forEach(e=>e.classList.remove('err')); $app.querySelectorAll('.msg').forEach(m=>m.hidden=true); }
+
+function collect(){
+  clearErr();
+  const general=[]; 
+  if(!$app.querySelector('input[name="consent"]').checked) flag($app.querySelector('[data-qwrap="consent"]'),'「同意する」にチェックしてください。');
+  Q.forEach(q=>{
+    const w=$app.querySelector(`[data-qwrap="${q.name}"]`); let a='';
+    if(q.kind==='radio'){ a=radio(q.name); if(q.req&&!a) flag(w,'選択してください。'); const r=val(q.name+'_reason'); general.push({q:q.label,a:a}); if(q.reason) general.push({q:q.label+'（理由）',a:r}); }
+    else if(q.kind==='select'){ a=val(q.name); if(q.req&&!a) flag(w,'選択してください。'); general.push({q:q.label,a:a}); }
+    else if(q.kind==='check'){ const c=checks(q.name); const ot=val(q.name+'_other'); if(ot) c.push('その他：'+ot); general.push({q:q.label,a:c.join(' / ')}); }
+    else { general.push({q:q.label,a:val(q.name)}); }
+  });
+  const meetings=[];
+  S.partners.forEach((m,i)=>{
+    const o={partner:m.partner,slot:m.slot,held:!$app.querySelector(`input[name="m${i}_skip"]`).checked,result:'',actions:[],products:[],memo:val(`m${i}_memo`)};
+    if(!o.held){ meetings.push(o); return; }
+    o.result=radio(`m${i}_res`); if(!o.result) flag($app.querySelector(`[data-qwrap="m${i}_res"]`),'選択してください。');
+    o.actions=checks(`m${i}_act`);
+    const pw=$app.querySelector(`[data-qwrap="m${i}_prod"]`);
+    m.products.forEach((p,j)=>{
+      if($app.querySelector(`input[name="m${i}_p${j}"]`).checked){
+        const c=val(`m${i}_p${j}_c`);
+        if(!c) flag(document.getElementById(`pc_${i}_${j}`),'コメントを入力してください。');
+        o.products.push({name:p,comment:c,other:false});
+      }
+    });
+    const others=document.getElementById('others'+i).children;
+    for(let k=0;k<others.length;k++){
+      const n=val(`m${i}_o${k}_n`), c=val(`m${i}_o${k}_c`);
+      if(!n && !c) continue;                       // 空の追加欄は無視
+      if(!n||!c) flag(others[k],'商品名とコメントの両方を入力してください。');
+      o.products.push({name:n,comment:c,other:true});
+    }
+    if(o.products.length===0) flag(pw,'商品を1つ以上選択（または追加）してください。');
+    meetings.push(o);
+  });
+  return {general,meetings};
+}
+
+async function submit(){
+  const btn=document.getElementById('submitBtn'), box=document.getElementById('submitMsg');
+  box.hidden=true;
+  const data=collect();
+  if(errs.length){ box.textContent='未入力の必須項目があります（赤枠の箇所）。ご確認ください。'; box.hidden=false; errs[0].scrollIntoView({behavior:'smooth',block:'center'}); return; }
+  btn.disabled=true; btn.textContent='送信中…';
+  try{
+    const res=await fetch(BASE_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action:'submitSurvey',t:token},data))});
+    const j=await res.json();
+    if(!j.success) throw new Error(j.message||'送信に失敗しました');
+    try{ localStorage.removeItem(DKEY); }catch(e){}
+    $app.innerHTML=`<h1>ご回答ありがとうございました</h1><div class="banner ok">回答を受け付けました（${esc(j.submittedAt)}）。<br>ご協力に感謝いたします。このページは閉じて構いません。</div><p class="lead">内容を修正する場合は、同じURLからもう一度ご回答ください（前回の回答は置き換わります）。</p>`;
+    window.scrollTo(0,0);
+  }catch(e){
+    box.textContent='送信できませんでした：'+e.message+'　通信状況をご確認のうえ、もう一度お試しください。入力内容は保持されています。'; box.hidden=false;
+    btn.disabled=false; btn.textContent='回答を送信する';
+  }
+}
+
+/* ---------- 起動 ---------- */
+(async function(){
+  if(!token){ $app.innerHTML='<div class="banner ng">URLが正しくありません。お送りしたメールに記載のURLからアクセスしてください。</div>'; return; }
+  if(BASE_URL==='YOUR_SURVEY_GAS_URL'){ $app.innerHTML='<div class="banner ng">BASE_URL が未設定です（README参照）。</div>'; return; }
+  try{
+    const r=await fetch(BASE_URL+'?action=getSurvey&t='+encodeURIComponent(token));
+    const j=await r.json();
+    if(!j.success){ $app.innerHTML='<div class="banner ng">'+esc(j.message||'読み込みに失敗しました')+'</div>'; return; }
+    S=j; render();
+  }catch(e){ $app.innerHTML='<div class="banner ng">読み込みに失敗しました。通信状況をご確認のうえ、再読み込みしてください。</div>'; }
+})();
+</script>
+</body>
+</html>
