@@ -47,12 +47,13 @@ button:disabled{opacity:.5}
 <main id="app"><p>読み込み中…</p></main>
 <script>
 // 【要差し替え】アンケート用GASをデプロイしたURL(.../exec)
-const BASE_URL = 'YOUR_SURVEY_GAS_URL';
+const BASE_URL = 'https://script.google.com/macros/s/AKfycbw_ORlRcf2tNjxeCvFvfpnqDSJGLTLfhTYR23PY_z3bk7tqoqwdIZ2yr_5pXkl_Vg7VFw/exec';
 
 const RESULTS = ['①取扱の方向でまとまった','②社内検討予定（見積り・サンプル送付等を依頼）','③取引条件によっては、取扱の可能性もある','④現状では取扱が難しい'];
 const SAT4 = ['大変満足','満足','普通','不満'];
 const ACTIONS = ['御礼メール','サンプル送付','見積り提出','次回商談（対面・オンライン）','その他','特になし'];
 const COUNTS = Array.from({length:9},(_,i)=>i+'件').concat(['9件以上']);
+const SOURCES = ['ここ滋賀からの通知','滋賀県内商工会・商工会議所からの通知','滋賀県中小企業団体中央会からの通知','びわ湖ビジターズビューローからの通知','滋賀県庁関係部署からの通知','市町関係部署からの通知','滋賀県のホームページ'];
 const IMPORTANT = ['品質・味','コストパフォーマンス','供給量','出展者の熱意','商品のストーリー性','商流','パッケージ','地域性','製造過程の安全性','SDGsや環境問題などへの取り組み','無添加・オーガニック','産直対応可','PB・OEM対応可','希少性','商談後の対応の速さや丁寧さ'];
 
 const token = new URLSearchParams(location.search).get('t') || '';
@@ -67,17 +68,18 @@ function defineQuestions(type){
   const pre = [], post = [];
   const radio = (name,label,opts,reason,req=true)=>({name,label,kind:'radio',opts,reason,req});
   if(type==='vendor'){
-    pre.push(radio('Q1','Q1. 本商談会に参加されて、いかがでしたか？',SAT4,'上記の評価理由をお聞かせください。'));
-    pre.push({name:'Q2',label:'Q2. 当日成約した商談件数をおしえてください。',kind:'select',opts:COUNTS,req:true});
-    pre.push({name:'Q3',label:'Q3. 継続して商談を進める（今後取引につながりそうな）件数をおしえてください。',kind:'select',opts:COUNTS,req:true});
-    pre.push(radio('Q4','Q4. 参加バイヤーの質はいかがでしたか？',SAT4,'上記の理由および、ご感想をお聞かせください。'));
-    pre.push(radio('Q5','Q5. 来年も当商談会に出展したいと思いますか？',['出展したい','検討したい','出展しない'],'上記の理由をお聞かせください。'));
-    post.push(radio('Q6','Q6. 当日の運営（会場・受付〈QRコード〉・タイムテーブル等）はいかがでしたか？',SAT4,'上記の理由やご要望をお聞かせください。'));
-    post.push({name:'Q7',label:'Q7. その他、運営に関してご意見・ご感想をご記入ください。',kind:'text',req:false});
+    pre.push({name:'Q1',label:'Q1. 今回の商談会はどこでお知りになられましたか？（複数回答可）',kind:'check',opts:SOURCES,other:true,req:true});
+    pre.push(radio('Q2','Q2. 本商談会に参加されて、いかがでしたか？',SAT4,'上記の評価理由をお聞かせください。'));
+    pre.push({name:'Q3',label:'Q3. 当日成約した商談件数をおしえてください。',kind:'select',opts:COUNTS,req:true});
+    pre.push({name:'Q4',label:'Q4. 継続して商談を進める（今後取引につながりそうな）件数をおしえてください。',kind:'select',opts:COUNTS,req:true});
+    pre.push(radio('Q5','Q5. 参加バイヤーの質はいかがでしたか？',SAT4,'上記の理由および、ご感想をお聞かせください。'));
+    pre.push(radio('Q6','Q6. 当日の運営（会場・受付〈QRコード〉・タイムテーブル等）はいかがでしたか？',SAT4,'上記の理由やご要望をお聞かせください。'));
+    post.push(radio('Q7','Q7. 来年も当商談会に出展したいと思いますか？',['出展したい','検討したい','出展しない'],'上記の理由をお聞かせください。'));
+    post.push({name:'Q8',label:'Q8. その他、運営に関してご意見・ご感想をご記入ください。',kind:'text',req:false});
   }else{
     pre.push(radio('Q1','Q1. 本商談会に参加されて、いかがでしたか？',SAT4,'上記の評価理由をお聞かせください。'));
     post.push({name:'Q2',label:'Q2. 商談された事業者の商品に対し、首都圏での販路開拓を進めるにあたっての改善点やアドバイス等がございましたらご記入ください。',kind:'text',req:false});
-    post.push({name:'Q3',label:'Q3. 商談において、重視する点は何ですか？（複数回答可）',kind:'check',opts:IMPORTANT,other:true,req:false});
+    post.push({name:'Q3',label:'Q3. 商談において、重視する点は何ですか？（上位3つまで）',kind:'check',opts:IMPORTANT,other:true,max:3,req:false});
     post.push({name:'Q4',label:'Q4. 注目している、または気になる地域、テーマ、ジャンル等をお聞かせください。',help:'（例：健康食品、調理時間短縮、催事可能、SDGsへの取組み、グルテンフリー等）',kind:'text',req:false});
     post.push({name:'Q5',label:'Q5. 滋賀県のどういったところに魅力を感じますか？またどういう商品があったら良いと思いますか？',kind:'text',req:false});
     post.push(radio('Q6','Q6. 当日の運営（会場・受付〈QRコード〉・タイムテーブル等）はいかがでしたか？',SAT4,'上記の理由やご要望をお聞かせください。'));
@@ -96,6 +98,7 @@ function qHtml(q){
   }else if(q.kind==='select'){
     h += `<select name="${q.name}"><option value="">選択してください</option>${q.opts.map(o=>`<option>${esc(o)}</option>`).join('')}</select>`;
   }else if(q.kind==='check'){
+    if(q.max) h += `<div class="help">最大${q.max}つまで選択できます（「その他」に記入した場合も1つに数えます）。</div>`;
     h += q.opts.map(o=>`<label class="opt"><input type="checkbox" name="${q.name}" value="${esc(o)}">${esc(o)}</label>`).join('');
     if(q.other) h += `<label class="opt" style="display:flex;gap:6px;align-items:center"><span style="white-space:nowrap">その他：</span><input type="text" name="${q.name}_other"></label>`;
   }else h += `<textarea name="${q.name}"></textarea>`;
@@ -149,7 +152,7 @@ function render(){
   h += `<h2>1. 商談会全体について</h2><div class="card">${pre.map(qHtml).join('')}</div>`;
   h += `<h2>2. 商談ごとのご回答</h2><p class="lead">${S.type==='buyer'?'本日商談した事業者ごとに、結果・商品・コメントをご記入ください。':'本日商談したバイヤーごとに、結果・提案した商品・バイヤーの反応をご記入ください。'}（${S.partners.length}件）</p>`;
   h += S.partners.map((m,i)=>meetingHtml(m,i,S.type)).join('');
-  h += `<h2>3. 全体について</h2><div class="card">${post.map(qHtml).join('')}</div>
+  h += `<h2>3. ${S.type==='vendor'?'今後について':'全体について'}</h2><div class="card">${post.map(qHtml).join('')}</div>
   <div id="submitMsg" class="banner ng" hidden></div>
   <button class="main" id="submitBtn" type="button">回答を送信する</button>
   <p class="help" style="text-align:center">入力内容はこの端末に自動保存されます（送信前に画面を閉じても続きから入力できます）。</p>`;
@@ -158,6 +161,7 @@ function render(){
   $app.addEventListener('change',e=>{
     const t=e.target;
     if(t.classList.contains('pchk')) document.getElementById(`pc_${t.dataset.m}_${t.dataset.j}`).hidden = !t.checked;
+    if(t.type==='checkbox'){ const q=Q.find(x=>x.name===t.name); if(q&&q.max&&t.checked){ const n=checks(q.name).length+(val(q.name+'_other')?1:0); if(n>q.max){ t.checked=false; alert('選択は'+q.max+'つまでです。'); } } }
     if(t.classList.contains('skipchk')) document.getElementById('mbody'+t.dataset.m).hidden = t.checked;
     save();
   });
@@ -211,7 +215,7 @@ function collect(){
     const w=$app.querySelector(`[data-qwrap="${q.name}"]`); let a='';
     if(q.kind==='radio'){ a=radio(q.name); if(q.req&&!a) flag(w,'選択してください。'); const r=val(q.name+'_reason'); general.push({q:q.label,a:a}); if(q.reason) general.push({q:q.label+'（理由）',a:r}); }
     else if(q.kind==='select'){ a=val(q.name); if(q.req&&!a) flag(w,'選択してください。'); general.push({q:q.label,a:a}); }
-    else if(q.kind==='check'){ const c=checks(q.name); const ot=val(q.name+'_other'); if(ot) c.push('その他：'+ot); general.push({q:q.label,a:c.join(' / ')}); }
+    else if(q.kind==='check'){ const c=checks(q.name); const ot=val(q.name+'_other'); if(ot) c.push('その他：'+ot); if(q.req&&c.length===0) flag(w,'1つ以上選択してください。'); if(q.max&&c.length>q.max) flag(w,'選択は'+q.max+'つまでです（現在'+c.length+'つ）。'); general.push({q:q.label,a:c.join(' / ')}); }
     else { general.push({q:q.label,a:val(q.name)}); }
   });
   const meetings=[];
