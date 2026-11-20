@@ -20,7 +20,8 @@ h2{font-size:18px;margin:28px 0 10px;padding-left:10px;border-left:5px solid var
 .req::after{content:" 必須";color:#fff;background:var(--err);font-size:11px;padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:middle;font-weight:400}
 .opt{display:block;padding:7px 10px;border:1px solid var(--bd);border-radius:8px;margin:5px 0;cursor:pointer;background:#fff}
 .opt:hover{border-color:var(--pri)}
-.opt input{margin-right:8px;transform:scale(1.15)}
+.opt input[type=checkbox],.opt input[type=radio]{margin-right:8px;transform:scale(1.15)}
+.opt input[type=text]{flex:1;min-width:0;width:auto}
 textarea,input[type=text],select{width:100%;font:inherit;padding:9px 10px;border:1px solid var(--bd);border-radius:8px;background:#fff}
 textarea{min-height:84px;resize:vertical}
 .help{font-size:13px;color:var(--mut);margin:2px 0 6px}
